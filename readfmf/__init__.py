@@ -33,4 +33,4 @@ u"""
 This is the readfmf module.
 """
 
-from readfmf import *       
+from readfmf.readfmf import stream2config

@@ -30,7 +30,7 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 import codecs
 import numpy
-import StringIO
+from io import StringIO
 import re
 
 def preParseData(b):
@@ -42,7 +42,7 @@ def preParseData(b):
             'semicolon' :';'
             }
 
-    if b.startswith(codecs.BOM_UTF8):
+    if bytes(b.encode('utf-8')).startswith(codecs.BOM_UTF8):
         b = b.lstrip(codecs.BOM_UTF8)
     if b[0] == ';' or b[0] == '#':
         commentChar = b[0]
@@ -52,27 +52,28 @@ def preParseData(b):
             for key,value in items:
                 stripkey = key.strip()
                 localVar[stripkey]=value.strip()
-                if mapping.has_key(localVar[stripkey].lower()):
+                if localVar[stripkey].lower() in mapping:
                     localVar[stripkey] = mapping[localVar[stripkey].lower()]
-        except ValueError,e:
+        except ValueError as e:
             from sys import exit
             exit('%s\nPlease, check syntax of headline, presumably a key' +
                  ' and its value are not separated by a colon.' % e)
-    d = unicode(b, localVar['coding'])
-    dataExpr = re.compile(ur"^(\[\*data(?::\s*([^\]]*))?\]\r?\n)([^[]*)", 
+    d = b
+    # d = str(b, localVar['coding'])
+    dataExpr = re.compile(r'^(\[\*data(?::\s*([^\]]*))?\]\r?\n)([^[]*)',
                     re.MULTILINE | re.DOTALL)
-    commentExpr = re.compile(ur"^%s.*"%commentChar, re.MULTILINE)
+    commentExpr = re.compile(r'^%s.*'%commentChar, re.MULTILINE)
     d = re.sub(commentExpr, '', d)
     preParsedData = {}
     def preParseData(match):
         try:
             preParsedData[match.group(2)] = \
-                numpy.loadtxt(StringIO.StringIO(match.group(3)),
+                numpy.loadtxt(StringIO(match.group(3)),
                                     unpack=True,
                                     comments=commentChar,
                                     dtype='S',
                                     delimiter=localVar['delimiter'])
-        except Exception, e:
+        except Exception as e:
             return match.group(0)
         return u""
     d = re.sub(dataExpr, preParseData, d)
@@ -193,7 +194,7 @@ def stream2config(stream):
                                 re.VERBOSE)
     try:
         config = FMFConfigObj(d.encode('utf-8').splitlines(), encoding='utf-8')
-    except ConfigObjError,e:
+    except ConfigObjError as e:
         from sys import exit
         exit('%s\nPlease check the syntax of the FMF-file, in particular' % e +
              ' the correct usage of comments.')
